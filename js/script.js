@@ -160,10 +160,12 @@ heroReady(function(){
     .to('#heroC', {opacity:1, duration:1.0}, '-=.8')
     .add(function(){ var wa=document.getElementById('wa-float'); if(wa) wa.classList.add('show'); }, '-=.4');
 
-  gsap.to(heroImg, { scale:.96, ease:'none',
-    scrollTrigger:{ trigger:'.hero', start:'top top', end:'bottom top', scrub:true } });
-  gsap.to('.hero .centre', { yPercent:-8, opacity:.5, ease:'none',
-    scrollTrigger:{ trigger:'.hero', start:'top top', end:'bottom top', scrub:true } });
+  if(matchMedia('(hover:hover) and (pointer:fine)').matches){
+    gsap.to(heroImg, { scale:.96, ease:'none',
+      scrollTrigger:{ trigger:'.hero', start:'top top', end:'bottom top', scrub:true } });
+    gsap.to('.hero .centre', { yPercent:-8, opacity:.5, ease:'none',
+      scrollTrigger:{ trigger:'.hero', start:'top top', end:'bottom top', scrub:true } });
+  }
 
   if(matchMedia('(hover:hover) and (pointer:fine)').matches){
     var hero=document.querySelector('.hero'), tx=0,ty=0,cx=0,cy=0,raf=null;
@@ -216,6 +218,12 @@ document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
       gsap.to(batch,{opacity:1,y:0,x:0,duration:.95,stagger:.12,ease:'power3.out',overwrite:true,onComplete:function(){ gsap.set(batch,{clearProps:'transform,opacity'}); }});
     }});
   }
+  /* fail-safe: nothing GSAP-hid may stay invisible if ScrollTrigger misfires (iOS) */
+  if(window.gsap){ addEventListener('load',function(){ setTimeout(function(){
+    document.querySelectorAll('.press-card,.testi-track .tcard').forEach(function(el){
+      if(parseFloat(getComputedStyle(el).opacity)<0.05) gsap.set(el,{opacity:1,x:0,y:0,clearProps:'transform'});
+    });
+  },4500); }); }
 })();
 
 /* centred brand: colour arrives, the jharokha draws itself */
@@ -255,24 +263,32 @@ try{
   var a=document.getElementById('bgm'), b=document.getElementById('sound-toggle');
   if(!a||!b) return;
   a.src="assets/audio/advait-ambient.mp3";
+  /* iOS/Safari ignores programmatic volume; detect it so pause doesn't wait on a
+     fade that can never reach 0 (that was leaving the audio playing on iPhone). */
+  var canVol=false; try{ a.volume=0.5; canVol=Math.abs(a.volume-0.5)<0.01; }catch(e){} try{ a.volume=1; }catch(e){}
   var fadeT;
   function fade(to, done){
     clearInterval(fadeT);
+    if(!canVol){ if(done) done(); return; }          /* no volume control -> act immediately */
+    var steps=0;
     fadeT=setInterval(function(){
-      var d=to-a.volume;
-      if(Math.abs(d)<0.03){ a.volume=to; clearInterval(fadeT); if(done) done(); }
+      var d=to-a.volume; steps++;
+      if(Math.abs(d)<0.03 || steps>28){ a.volume=to; clearInterval(fadeT); if(done) done(); }
       else a.volume=Math.max(0,Math.min(1,a.volume+d*0.15));
-    },45);
+    },40);
   }
   b.addEventListener('click', function(){
-    if(a.paused){
-      a.volume=0;
+    /* source of truth is the button's own state, not a.paused (unreliable on iOS) */
+    if(!b.classList.contains('playing')){
+      if(canVol) a.volume=0;
       var p=a.play(); if(p&&p.catch) p.catch(function(){});
       b.classList.add('playing'); b.setAttribute('aria-pressed','true'); b.setAttribute('aria-label','Pause ambient music');
       fade(0.32);
     } else {
-      b.classList.remove('playing'); b.setAttribute('aria-pressed','false'); b.setAttribute('aria-label','Play ambient music');
-      fade(0, function(){ a.pause(); });
+      /* pause immediately and unconditionally — never gated by a volume fade */
+      clearInterval(fadeT);
+      try{ a.pause(); }catch(e){}
+      b.classList.remove('playing'); b.setAttribute('aria-pressed','false'); b.setAttribute('aria-label','Turn ambient sound on');
     }
   });
 })();
@@ -292,3 +308,118 @@ try{
   upd();
 })();
 }catch(e){ if(window.console) console.warn('[advait] finale error:',e); }
+
+/* ============================================================
+   ANIMATION + INTERACTION UPGRADE — isolated modules.
+   ============================================================ */
+
+/* --- mobile hamburger menu (robust; no GSAP dependency) --- */
+try{
+(function(){
+  var toggle=document.getElementById('navToggle'), menu=document.getElementById('mobileMenu');
+  if(!toggle||!menu) return;
+  var links=[].slice.call(menu.querySelectorAll('a')), lastFocus=null;
+  function open(){
+    document.body.classList.add('menu-open'); menu.classList.add('open'); toggle.classList.add('on');
+    toggle.setAttribute('aria-expanded','true'); toggle.setAttribute('aria-label','Close menu');
+    menu.setAttribute('aria-hidden','false');
+    if(window.__lenis && window.__lenis.stop) window.__lenis.stop();
+    lastFocus=document.activeElement; setTimeout(function(){ if(links[0]) links[0].focus(); },60);
+  }
+  function close(){
+    document.body.classList.remove('menu-open'); menu.classList.remove('open'); toggle.classList.remove('on');
+    toggle.setAttribute('aria-expanded','false'); toggle.setAttribute('aria-label','Open menu');
+    menu.setAttribute('aria-hidden','true');
+    if(window.__lenis && window.__lenis.start) window.__lenis.start();
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  toggle.addEventListener('click',function(){ toggle.classList.contains('on')?close():open(); });
+  links.forEach(function(a){ a.addEventListener('click',close); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && toggle.classList.contains('on')) close(); });
+  window.addEventListener('resize',function(){ if(innerWidth>820 && toggle.classList.contains('on')) close(); });
+})();
+}catch(e){ if(window.console) console.warn('[advait] menu error:',e); }
+
+/* --- nav hide on scroll-down, show on scroll-up (below hero only) --- */
+try{
+(function(){
+  var navEl=document.getElementById('nav'); if(!navEl) return;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  var last=window.scrollY||0, ticking=false, T=6;
+  function upd(){
+    var y=window.scrollY||0;
+    if(document.body.classList.contains('menu-open')){ navEl.classList.remove('nav-up'); last=y; ticking=false; return; }
+    if(y>last+T && y>innerHeight*0.9){ navEl.classList.add('nav-up'); }
+    else if(y<last-T || y<innerHeight*0.6){ navEl.classList.remove('nav-up'); }
+    last=y; ticking=false;
+  }
+  addEventListener('scroll',function(){ if(!ticking){ requestAnimationFrame(upd); ticking=true; } },{passive:true});
+})();
+}catch(e){ if(window.console) console.warn('[advait] navhide error:',e); }
+
+/* --- extra reveals: clip-path images + divider scaleX (fail-open, no GSAP) --- */
+try{
+(function(){
+  var els=[].slice.call(document.querySelectorAll('.reveal-img,.animrule'));
+  if(!els.length) return;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return; /* leave visible (CSS default) */
+  function reveal(el){ el.classList.add('in'); }
+  els.forEach(function(el){ el.classList.add('armed'); }); /* hide via JS; if JS had failed, images stay visible */
+  if(!('IntersectionObserver' in window)){ els.forEach(reveal); return; }
+  var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ reveal(e.target); io.unobserve(e.target);} }); },{threshold:0,rootMargin:'0px 0px -6% 0px'});
+  els.forEach(function(el){ io.observe(el); });
+  /* safety net 1 — reveal anything whose top has entered the viewport (backs up the observer) */
+  function sweep(){ for(var i=0;i<els.length;i++){ var el=els[i]; if(el.classList.contains('in'))continue; if(el.getBoundingClientRect().top < innerHeight*0.92){ reveal(el); io.unobserve(el);} } }
+  addEventListener('scroll',sweep,{passive:true}); sweep();
+  /* safety net 2 — nothing may ever stay hidden */
+  addEventListener('load',function(){ setTimeout(function(){ els.forEach(reveal); },4000); });
+})();
+}catch(e){ if(window.console) console.warn('[advait] reveal2 error:',e); }
+
+/* --- word-split heading reveals: rise + blur->sharp (non-panel headings) --- */
+try{
+(function(){
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  if(!('IntersectionObserver' in window)) return;
+  var heads=[].slice.call(document.querySelectorAll('h2:not(.pd-title)'));
+  if(!heads.length) return;
+  function split(h){
+    if(h.dataset.hsplit) return; h.dataset.hsplit='1';
+    var frag=document.createDocumentFragment();
+    [].slice.call(h.childNodes).forEach(function(n){
+      if(n.nodeType===3){
+        n.textContent.split(/(\s+)/).forEach(function(p){
+          if(p==='') return;
+          if(/^\s+$/.test(p)) frag.appendChild(document.createTextNode(p));
+          else { var s=document.createElement('span'); s.className='hw'; s.textContent=p; frag.appendChild(s); }
+        });
+      } else { frag.appendChild(n.cloneNode(true)); }
+    });
+    h.innerHTML=''; h.appendChild(frag); h.classList.add('hsplit');
+    [].slice.call(h.querySelectorAll('.hw')).forEach(function(w,i){ w.style.transitionDelay=(i*0.05)+'s'; });
+  }
+  var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }); },{threshold:.2});
+  heads.forEach(function(h){ split(h); io.observe(h); });
+})();
+}catch(e){ if(window.console) console.warn('[advait] hsplit error:',e); }
+
+/* --- Lenis smooth scroll (desktop, non-touch, non-reduced-motion; graceful) --- */
+try{
+(function(){
+  var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var coarse=matchMedia('(hover:none),(pointer:coarse)').matches;
+  if(reduce || coarse || !window.Lenis) return;
+  var lenis=new Lenis({lerp:0.09});
+  window.__lenis=lenis;
+  function raf(t){ lenis.raf(t); requestAnimationFrame(raf); }
+  requestAnimationFrame(raf);
+  if(window.ScrollTrigger){ lenis.on('scroll', ScrollTrigger.update); if(window.gsap) gsap.ticker.lagSmoothing(0); }
+  document.querySelectorAll('a[href^="#"]').forEach(function(a){
+    a.addEventListener('click',function(e){
+      var id=a.getAttribute('href'); if(!id||id.length<2) return;
+      var t=document.querySelector(id); if(!t) return;
+      e.preventDefault(); lenis.scrollTo(t,{offset:-8});
+    });
+  });
+})();
+}catch(e){ if(window.console) console.warn('[advait] lenis error:',e); }
