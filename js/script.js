@@ -105,6 +105,19 @@ document.querySelectorAll('[data-asset]').forEach(function(img){
   });
 })();
 
+/* projects: 'show all' reveal inside the All pane */
+(function(){
+  var btn=document.getElementById('showMoreAll');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var pane=btn.closest('.cat-pane');
+    if(!pane) return;
+    pane.classList.add('revealed');
+    var extras=[].slice.call(pane.querySelectorAll('.ecard.is-extra'));
+    extras.forEach(function(c,i){ c.style.animation='none'; void c.offsetWidth; c.style.animation=''; c.style.animationDelay=(i*0.05)+'s'; });
+  });
+})();
+
 /* hero sequence: waits for the image */
 var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* the WhatsApp button must never fail to appear */
@@ -257,42 +270,49 @@ onScroll();
 })();
 }catch(e){ if(window.console) console.warn('[advait] core (assets, galleries, panels, animations) error:',e); }
 
-/* --- ambient audio toggle --- */
+/* --- ambient audio: auto-start after ~4.5s (with gesture fallback) --- */
 try{
 (function(){
-  var a=document.getElementById('bgm'), b=document.getElementById('sound-toggle');
-  if(!a||!b) return;
+  var a=document.getElementById('bgm');
+  if(!a) return;
   a.src="assets/audio/advait-ambient.mp3";
-  /* iOS/Safari ignores programmatic volume; detect it so pause doesn't wait on a
-     fade that can never reach 0 (that was leaving the audio playing on iPhone). */
+  /* iOS/Safari ignores programmatic volume; detect so we can skip a fade that
+     can never reach its target on those devices. */
   var canVol=false; try{ a.volume=0.5; canVol=Math.abs(a.volume-0.5)<0.01; }catch(e){} try{ a.volume=1; }catch(e){}
-  var fadeT;
-  function fade(to, done){
+  var fadeT, started=false;
+  function fade(to){
     clearInterval(fadeT);
-    if(!canVol){ if(done) done(); return; }          /* no volume control -> act immediately */
+    if(!canVol) return;
     var steps=0;
     fadeT=setInterval(function(){
       var d=to-a.volume; steps++;
-      if(Math.abs(d)<0.03 || steps>28){ a.volume=to; clearInterval(fadeT); if(done) done(); }
+      if(Math.abs(d)<0.03 || steps>28){ a.volume=to; clearInterval(fadeT); }
       else a.volume=Math.max(0,Math.min(1,a.volume+d*0.15));
     },40);
   }
-  b.addEventListener('click', function(){
-    /* source of truth is the button's own state, not a.paused (unreliable on iOS) */
-    if(!b.classList.contains('playing')){
-      if(canVol) a.volume=0;
-      var p=a.play(); if(p&&p.catch) p.catch(function(){});
-      b.classList.add('playing'); b.setAttribute('aria-pressed','true'); b.setAttribute('aria-label','Pause ambient music');
-      fade(0.32);
+  function start(){
+    if(started) return;
+    if(canVol) a.volume=0;
+    var p=a.play();
+    if(p&&p.then){
+      p.then(function(){ started=true; removeGestureListeners(); fade(0.32); })
+       .catch(function(){ /* autoplay blocked — wait for a user gesture (listeners below) */ });
     } else {
-      /* pause immediately and unconditionally — never gated by a volume fade */
-      clearInterval(fadeT);
-      try{ a.pause(); }catch(e){}
-      b.classList.remove('playing'); b.setAttribute('aria-pressed','false'); b.setAttribute('aria-label','Turn ambient sound on');
+      /* older browsers: no promise returned, assume it started */
+      started=true; removeGestureListeners(); fade(0.32);
     }
-  });
+  }
+  /* Most browsers block sound until the user interacts with the page, so the
+     4.5s timer may be refused. These listeners retry on the first gesture. */
+  function onGesture(){ start(); }
+  var evts=['pointerdown','touchstart','keydown','scroll'];
+  function removeGestureListeners(){
+    evts.forEach(function(ev){ window.removeEventListener(ev,onGesture); });
+  }
+  evts.forEach(function(ev){ window.addEventListener(ev,onGesture,{passive:true}); });
+  setTimeout(start, 11000);
 })();
-}catch(e){ if(window.console) console.warn('[advait] ambient audio toggle error:',e); }
+}catch(e){ if(window.console) console.warn('[advait] ambient audio error:',e); }
 
 /* --- finale --- */
 try{
