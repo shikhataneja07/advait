@@ -443,3 +443,42 @@ try{
   });
 })();
 }catch(e){ if(window.console) console.warn('[advait] lenis error:',e); }
+
+/* --- stats: staggered count-up on scroll + hover replay (interactive) --- */
+try{
+(function(){
+  var stats=document.getElementById('stats');
+  if(!stats) return;
+  var nums=[].slice.call(stats.querySelectorAll('.stat-num[data-count]'));
+  if(!nums.length) return;
+  function fin(el){ return el.getAttribute('data-count')+(el.getAttribute('data-suffix')||''); }
+  if(!('IntersectionObserver' in window) || !window.requestAnimationFrame){
+    nums.forEach(function(el){ el.textContent=fin(el); }); return;
+  }
+  function animate(el, delay){
+    var target=+el.getAttribute('data-count'), suf=el.getAttribute('data-suffix')||'', dur=1300;
+    el.textContent='0';
+    setTimeout(function(){
+      var t0=null;
+      function step(ts){ if(!t0) t0=ts; var p=Math.min((ts-t0)/dur,1), e=1-Math.pow(1-p,3);
+        el.textContent=Math.round(e*target)+(p>=1?suf:''); if(p<1) requestAnimationFrame(step); }
+      requestAnimationFrame(step);
+    }, delay||0);
+  }
+  nums.forEach(function(el){ el.textContent='0'; });
+  var done=false;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting || done) return;
+      done=true; io.disconnect();
+      nums.forEach(function(el,i){ animate(el, i*200); });   /* stagger -> sense of movement */
+    });
+  },{threshold:0.4});
+  io.observe(stats);
+  /* hover a stat to replay its count-up */
+  nums.forEach(function(el){
+    var stat=el.closest ? el.closest('.stat') : el.parentNode;
+    (stat||el).addEventListener('mouseenter', function(){ if(done) animate(el, 0); });
+  });
+})();
+}catch(e){ if(window.console) console.warn('[advait] stats counter error:',e); }
