@@ -111,6 +111,7 @@ nav .links a:hover{color:var(--clay)}
 .press-card:hover{transform:translateY(-6px)}
 .pc-link{display:block;text-decoration:none;color:inherit;cursor:pointer}
 .pc-media{position:relative;aspect-ratio:4/3;overflow:hidden;background:linear-gradient(135deg,var(--paper2),#E4DACB)}
+.pc-media.pc-ig{display:flex;align-items:center;justify-content:center;color:var(--clay);background:linear-gradient(135deg,#EFE4D3,#E3C87C22)}
 .pc-media img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .9s cubic-bezier(.2,.7,.2,1)}
 .pc-scrim{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(60,40,32,.32));opacity:0;transition:opacity .6s ease}
 .press-card:hover .pc-media img{transform:scale(1.03)}
