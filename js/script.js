@@ -271,7 +271,7 @@ onScroll();
 })();
 }catch(e){ if(window.console) console.warn('[advait] core (assets, galleries, panels, animations) error:',e); }
 
-/* --- ambient audio: start immediately on load (with gesture fallback) --- */
+/* --- ambient audio: starts on the visitor's first gesture (tap/scroll/click) --- */
 try{
 (function(){
   var a=document.getElementById('bgm');
@@ -310,9 +310,8 @@ try{
       started=true; attempting=false; removeGestureListeners(); fade(0.32);
     }
   }
-  /* Most browsers block sound until the user interacts with the page, so the
-     immediate attempt above may be refused. These listeners retry on the
-     first gesture. iOS Safari is stricter than desktop here: it only
+  /* Most browsers block sound until the user interacts with the page.
+     These listeners start playback on the first gesture. iOS Safari is stricter than desktop here: it only
      reliably counts a completed tap (touchend) or click — NOT a scroll or
      the start of a touch — so touchend/click must be included or the site
      never unlocks audio on iPhone even though desktop works fine. */
@@ -322,7 +321,6 @@ try{
     evts.forEach(function(ev){ window.removeEventListener(ev,onGesture); });
   }
   evts.forEach(function(ev){ window.addEventListener(ev,onGesture,{passive:true}); });
-  setTimeout(start, 0);
 })();
 }catch(e){ if(window.console) console.warn('[advait] ambient audio error:',e); }
 
