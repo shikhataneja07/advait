@@ -280,7 +280,7 @@ try{
   /* iOS/Safari ignores programmatic volume; detect so we can skip a fade that
      can never reach its target on those devices. */
   var canVol=false; try{ a.volume=0.5; canVol=Math.abs(a.volume-0.5)<0.01; }catch(e){} try{ a.volume=1; }catch(e){}
-  var fadeT, started=false;
+  var fadeT, started=false, attempting=false;
   function fade(to){
     clearInterval(fadeT);
     if(!canVol) return;
@@ -292,15 +292,22 @@ try{
     },40);
   }
   function start(){
-    if(started) return;
+    /* 'attempting' stops a second play() call from firing while the first is
+       still pending — without this, rapid scroll events (dozens per second
+       on mobile, plus iOS's post-touch momentum-scroll events) each fire a
+       new play() that interrupts the one before it, so the browser's final
+       settled state ends up essentially random. Only one attempt in flight
+       at a time fixes that. */
+    if(started || attempting) return;
+    attempting=true;
     if(canVol) a.volume=0;
     var p=a.play();
     if(p&&p.then){
-      p.then(function(){ started=true; removeGestureListeners(); fade(0.32); })
-       .catch(function(){ /* autoplay blocked — wait for a user gesture (listeners below) */ });
+      p.then(function(){ started=true; attempting=false; removeGestureListeners(); fade(0.32); })
+       .catch(function(){ attempting=false; /* blocked — a later gesture gets its own clean attempt */ });
     } else {
       /* older browsers: no promise returned, assume it started */
-      started=true; removeGestureListeners(); fade(0.32);
+      started=true; attempting=false; removeGestureListeners(); fade(0.32);
     }
   }
   /* Most browsers block sound until the user interacts with the page, so the
