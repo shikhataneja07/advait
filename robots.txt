@@ -1,0 +1,9 @@
+# DOMAIN CONFIG — TEMPORARY VALUE, UPDATE BEFORE FINAL LAUNCH
+# Currently the free Vercel preview URL (no custom domain purchased yet).
+# When the real domain is live, replace the line below — see README.md
+# -> "Before going live" for the other 2 files that need the same update.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://advait-orpin.vercel.app/sitemap.xml

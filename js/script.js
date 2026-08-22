@@ -7,7 +7,7 @@ if(window.gsap && window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
 (function(){
 var IMGDIR='assets/images/';
 var ASSETS = {
-  logo:   ['advait logo 02.svg','Advait logo 02.svg','Advait_logo_02.svg','advait-logo-02.svg','advait logo 01.svg','Advait logo 01.svg','Advait_logo_01.svg'],
+  logo:   ['assets/icons/advait logo 02.svg','assets/icons/Advait logo 02.svg','assets/icons/Advait_logo_02.svg','assets/icons/advait-logo-02.svg','assets/icons/advait logo 01.svg','assets/icons/Advait logo 01.svg','assets/icons/Advait_logo_01.svg'],
   hero:   ['advait hero image.webp','advait-hero-image.webp','advait_hero_image.webp','advait hero image.jpg'],
   studio1:['advait new 1.webp','advait-new-1.webp','advait_new_1.webp'],
   studio2:['advait new 2.webp','advait-new-2.webp','advait_new_2.webp'],
@@ -59,7 +59,8 @@ function resolve(img, list, idx){
     return;
   }
   img.onerror = function(){ resolve(img, list, idx+1); };
-  img.src = encodeURI(IMGDIR + list[idx]);
+  var p = list[idx];
+  img.src = encodeURI(p.indexOf('/') !== -1 ? p : IMGDIR + p); /* absolute-ish entries (e.g. assets/icons/...) pass through as-is */
 }
 document.querySelectorAll('[data-asset]').forEach(function(img){
   var key = img.getAttribute('data-asset');
@@ -270,12 +271,12 @@ onScroll();
 })();
 }catch(e){ if(window.console) console.warn('[advait] core (assets, galleries, panels, animations) error:',e); }
 
-/* --- ambient audio: auto-start after ~4.5s (with gesture fallback) --- */
+/* --- ambient audio: start immediately on load (with gesture fallback) --- */
 try{
 (function(){
   var a=document.getElementById('bgm');
   if(!a) return;
-  a.src="assets/audio/advait-ambient.mp3";
+  a.src="assets/audio/advait-ambient-trimmed.mp3";
   /* iOS/Safari ignores programmatic volume; detect so we can skip a fade that
      can never reach its target on those devices. */
   var canVol=false; try{ a.volume=0.5; canVol=Math.abs(a.volume-0.5)<0.01; }catch(e){} try{ a.volume=1; }catch(e){}
@@ -310,7 +311,7 @@ try{
     evts.forEach(function(ev){ window.removeEventListener(ev,onGesture); });
   }
   evts.forEach(function(ev){ window.addEventListener(ev,onGesture,{passive:true}); });
-  setTimeout(start, 11000);
+  setTimeout(start, 0);
 })();
 }catch(e){ if(window.console) console.warn('[advait] ambient audio error:',e); }
 
