@@ -304,9 +304,13 @@ try{
     }
   }
   /* Most browsers block sound until the user interacts with the page, so the
-     4.5s timer may be refused. These listeners retry on the first gesture. */
+     immediate attempt above may be refused. These listeners retry on the
+     first gesture. iOS Safari is stricter than desktop here: it only
+     reliably counts a completed tap (touchend) or click — NOT a scroll or
+     the start of a touch — so touchend/click must be included or the site
+     never unlocks audio on iPhone even though desktop works fine. */
   function onGesture(){ start(); }
-  var evts=['pointerdown','touchstart','keydown','scroll'];
+  var evts=['touchend','click','pointerdown','touchstart','keydown','scroll'];
   function removeGestureListeners(){
     evts.forEach(function(ev){ window.removeEventListener(ev,onGesture); });
   }
