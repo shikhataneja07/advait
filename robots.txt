@@ -6,4 +6,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://advait-orpin.vercel.app/sitemap.xml
+Sitemap: https://advaitstudio.vercel.app/sitemap.xml

@@ -34,7 +34,7 @@ assets/
 ## Before going live (custom domain)
 
 The site currently lives at the free Vercel preview URL
-`https://advait-orpin.vercel.app/`. Several tags need an *absolute* URL
+`https://advaitstudio.vercel.app/`. Several tags need an *absolute* URL
 with the real domain — this can't be made automatic because the tags are
 read by WhatsApp/Facebook/Google's own crawlers, which only read the raw
 HTML and never run JavaScript.
@@ -43,7 +43,7 @@ Once the final domain is purchased and connected, find-and-replace this
 exact string in the 3 files below:
 
 ```
-https://advait-orpin.vercel.app
+https://advaitstudio.vercel.app
 ```
 
 | File | What's there |
